@@ -1,0 +1,6 @@
+*.iml
+*.ipr
+*.iws
+pkgroot/
+output/
+logs/
