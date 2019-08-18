@@ -40,29 +40,24 @@ start() {
     echo "started"
 }
 
-stop() {
-    test -f "$PIDFILE" && {
-        xargs -I{} kill -15 -{} < "$PIDFILE" && rm -f "$PIDFILE"
-        [[ $? == 0 ]] || {
-            echo "WARNING: stop failed, you should check the pid file $(readlink -f "$PIDFILE")"
-            return 0
-        }
-    }
+signal() {
+    local sig="$1"
 
+    test -f "$PIDFILE" && {
+        xargs -I{} kill -"$sig" -{} < "$PIDFILE" && rm -f "$PIDFILE"
+        [[ $? == 0 ]] || echo "WARNING: kill failed, you may check the pid file $(realpath "$PIDFILE")"
+    }
+}
+
+stop() {
+    signal 15
     echo "stopped"
     return 0
 }
 
 force_stop() {
-    test -f "$PIDFILE" && {
-        xargs -I{} kill -9 -{} < "$PIDFILE" && rm -f "$PIDFILE"
-        [[ $? == 0 ]] || {
-            echo "ERROR: kill failed, you should check the pid file $(readlink -f "$PIDFILE")"
-            return 1
-        }
-    }
-
-    echo "killed"
+    signal 9
+    echo "force stopped"
     return 0
 }
 

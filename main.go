@@ -5,9 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/abadcafe/autosplitfile"
-	"github.com/abadcafe/raascs/resp"
+	"github.com/abadcafe/raascs/cmds"
 	log "github.com/sirupsen/logrus"
-	"net"
 	"os"
 	"os/signal"
 	"path"
@@ -95,12 +94,10 @@ func main() {
 	log.SetFormatter(&log.TextFormatter{})
 	log.WithField("config", fmt.Sprintf("%+v", config)).Info("$$$$$$$ starting server ... $$$$$$$")
 
-	listener, err := net.Listen("tcp", config.ListenAddr)
+	server, err := cmds.BuildRespServer(config.ListenAddr)
 	if err != nil {
-		log.WithError(err).WithField("addr", config.ListenAddr).Fatal("listen failed")
+		log.WithError(err).WithField("addr", config.ListenAddr).Fatal("build RESP server failed")
 	}
-
-	server := resp.NewServer(listener)
 	waitGracefulStop := registerStopFunc(server.GracefulStop)
 
 	log.Info("serving...")

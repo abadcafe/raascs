@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-type CommandHandler func(cmd Command) error
+type CommandHandler func(cmd *Command) error
 
 type Server struct {
 	listener    net.Listener
@@ -33,7 +33,7 @@ func NewServer(l net.Listener) *Server {
 		cmdHandlers: map[string]CommandHandler{},
 	}
 
-	_ = s.RegisterCommand("QUIT", func(cmd Command) error {
+	_ = s.RegisterCommand("QUIT", func(cmd *Command) error {
 		return fmt.Errorf("just quit")
 	})
 	return s
@@ -96,7 +96,7 @@ func (s *Server) serveConn(c net.Conn) {
 
 		err = handler(cmd)
 		if err != nil {
-			log.WithError(err).Error("handle command", cmd.Name(), "failed")
+			log.WithError(err).Error("handle command ", cmd.Name(), " failed")
 			break
 		}
 
@@ -110,7 +110,7 @@ func (s *Server) serveConn(c net.Conn) {
 		continue
 	}
 
-	log.Info("deal with client", cc.id, "finished")
+	log.Info("deal with client ", cc.id, " finished")
 }
 
 func (s *Server) GracefulStop() {
@@ -131,13 +131,15 @@ func (s *Server) Serve() error {
 
 	for s.running {
 		c, err := s.listener.Accept()
-		if err, ok := err.(net.Error); ok {
+		if err != nil {
+			log.WithError(err).Error("accept failed")
+
 			if !s.running {
 				return nil
 			}
 
-			log.WithError(err).Error("accept failed")
-			if !err.Temporary() {
+			err, ok := err.(net.Error)
+			if ok && !err.Temporary() {
 				return err
 			}
 		}
