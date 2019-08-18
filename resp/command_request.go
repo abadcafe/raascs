@@ -15,16 +15,17 @@ type argReader interface {
 	DiscardAllArgs() error
 }
 
-type Command struct {
-	name string
-	w *bufio.Writer
+type CommandRequest struct {
+	cliId int
+	name  string
+	w     *bufio.Writer
 	argReader
 }
 
 type CommandFlag struct {
-	NeedValue bool
+	NeedValue     bool
 	ExclusiveFlag *bool
-	Receiver  func(s []byte) error
+	ValueReceiver func(s []byte) error
 }
 
 var ErrNoMoreArguments = errors.New("no more arguments")
@@ -67,7 +68,7 @@ func readBulkString(r *bufio.Reader) ([]byte, error) {
 	return buf, nil
 }
 
-func readCommand(c *cliConn) (*Command, error) {
+func buildCommandRequest(c *cliConn) (*CommandRequest, error) {
 	r := bufio.NewReader(c)
 
 	line, err := getLine(r)
@@ -107,22 +108,23 @@ func readCommand(c *cliConn) (*Command, error) {
 		return nil, fmt.Errorf("command string invalid")
 	}
 
-	return &Command{
+	return &CommandRequest{
+		cliId:     c.id,
 		name:      name,
 		w:         bufio.NewWriter(c),
 		argReader: argReader,
 	}, nil
 }
 
-func (c *Command) Name() string {
-	return c.name
+func (r *CommandRequest) Name() string {
+	return r.name
 }
 
-func (c *Command) ParseArgs(flags map[string]*CommandFlag) error {
+func (r *CommandRequest) ParseFlags(flags map[string]*CommandFlag) error {
 	var valueReceiver func(s []byte) error = nil
 
-	for c.ArgCount() > 0 {
-		args, err := c.ReadArg(1)
+	for r.ArgCount() > 0 {
+		args, err := r.ReadArg(1)
 		if err != nil {
 			return nil
 		}
@@ -131,7 +133,7 @@ func (c *Command) ParseArgs(flags map[string]*CommandFlag) error {
 			arg := string(bytes.ToUpper(args[0]))
 			cmdFlag, ok := flags[arg]
 			if !ok {
-				return fmt.Errorf("unexpected argument occurred: %s", arg)
+				return fmt.Errorf("unexpected command flag occurred: %s", arg)
 			}
 
 			if cmdFlag.ExclusiveFlag != nil {
@@ -143,12 +145,12 @@ func (c *Command) ParseArgs(flags map[string]*CommandFlag) error {
 			}
 
 			if !cmdFlag.NeedValue {
-				err = cmdFlag.Receiver(nil)
+				err = cmdFlag.ValueReceiver(nil)
 				if err != nil {
 					return err
 				}
 			} else {
-				valueReceiver = cmdFlag.Receiver
+				valueReceiver = cmdFlag.ValueReceiver
 			}
 		} else {
 			err := valueReceiver(args[0])
@@ -167,28 +169,28 @@ func (c *Command) ParseArgs(flags map[string]*CommandFlag) error {
 	return nil
 }
 
-func (c *Command) WriteInt(i int) error {
-	_, err := c.w.WriteString(fmt.Sprintf(":%d\r\n", i))
+func (r *CommandRequest) WriteInt(i int64) error {
+	_, err := r.w.WriteString(fmt.Sprintf(":%d\r\n", i))
 	return err
 }
 
-func (c *Command) WriteSimpleString(s string) error {
-	_, err := c.w.WriteString(fmt.Sprintf("+%s\r\n", s))
+func (r *CommandRequest) WriteSimpleString(s string) error {
+	_, err := r.w.WriteString(fmt.Sprintf("+%s\r\n", s))
 	return err
 }
 
-func (c *Command) WriteBulkString(s []byte) error {
-	_, err := c.w.WriteString(fmt.Sprintf("$%d\r\n", len(s)))
+func (r *CommandRequest) WriteBulkString(s []byte) error {
+	_, err := r.w.WriteString(fmt.Sprintf("$%d\r\n", len(s)))
 	if err != nil {
 		return err
 	}
 
-	_, err = c.w.Write(s)
+	_, err = r.w.Write(s)
 	if err != nil {
 		return err
 	}
 
-	_, err = c.w.Write([]byte("\r\n"))
+	_, err = r.w.Write([]byte("\r\n"))
 	if err != nil {
 		return err
 	}
@@ -196,31 +198,31 @@ func (c *Command) WriteBulkString(s []byte) error {
 	return err
 }
 
-func (c *Command) WriteNullBulkString() error {
-	_, err := c.w.WriteString("$-1\r\n")
+func (r *CommandRequest) WriteNullBulkString() error {
+	_, err := r.w.WriteString("$-1\r\n")
 	return err
 }
 
-func (c *Command) WriteArrayLen(i int) error {
-	_, err := c.w.WriteString(fmt.Sprintf("*%d\r\n", i))
+func (r *CommandRequest) WriteArrayLen(i int) error {
+	_, err := r.w.WriteString(fmt.Sprintf("*%d\r\n", i))
 	return err
 }
 
-func (c *Command) WriteNullArray() error {
-	_, err := c.w.WriteString("$-1\r\n")
+func (r *CommandRequest) WriteNullArray() error {
+	_, err := r.w.WriteString("$-1\r\n")
 	return err
 }
 
-func (c *Command) WriteError(s string) error {
-	err := c.DiscardAllArgs()
+func (r *CommandRequest) WriteError(s string) error {
+	err := r.DiscardAllArgs()
 	if err != nil {
 		return err
 	}
 
-	_, err = c.w.WriteString(fmt.Sprintf("-%s\r\n", s))
+	_, err = r.w.WriteString(fmt.Sprintf("-%s\r\n", s))
 	return err
 }
 
-func (c *Command) FlushWrites() error {
-	return c.w.Flush()
+func (r *CommandRequest) FlushWrites() error {
+	return r.w.Flush()
 }

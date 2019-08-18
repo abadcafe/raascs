@@ -5,10 +5,10 @@ import (
 	"net"
 )
 
-var cmds = make(map[string]resp.CommandHandler)
+var cmds = make(map[string]*resp.Command)
 
-func registerCommand(name string, handler resp.CommandHandler) {
-	cmds[name] = handler
+func registerCommand(name string, cmd *resp.Command) {
+	cmds[name] = cmd
 }
 
 func BuildRespServer(addr string) (*resp.Server, error) {

@@ -2,21 +2,26 @@ package cmds
 
 import (
 	"github.com/abadcafe/raascs/resp"
+	log "github.com/sirupsen/logrus"
 	"strconv"
 	"time"
 )
 
 func init() {
-	registerCommand("SET", cmdSet)
-	registerCommand("GET", cmdGet)
+	registerCommand("SET", &resp.Command{
+		MaxArgCount: -1,
+		MinArgCount: 2,
+		Handler: cmdSet,
+	})
+	registerCommand("GET", &resp.Command{
+		MinArgCount: 1,
+		MaxArgCount: 1,
+		Handler:     cmdGet,
+	})
 }
 
-func cmdSet(cmd *resp.Command) error {
-	if cmd.ArgCount() < 2 {
-		return cmd.WriteError("ERR wrong number of arguments for 'set' command")
-	}
-
-	args, err := cmd.ReadArg(2)
+func cmdSet(req *resp.CommandRequest) error {
+	args, err := req.ReadArg(2)
 	if err != nil {
 		return err
 	}
@@ -24,28 +29,30 @@ func cmdSet(cmd *resp.Command) error {
 	name := string(args[0])
 	value := args[1]
 
-	nxxxOccurred := false
-	expxOccurred := false
-	var nx bool
-	var xx bool
-	var ttl time.Duration
-	var flags map[string]*resp.CommandFlag
+	var (
+		nxxxOccurred bool
+		expxOccurred bool
+		nx    bool
+		xx    bool
+		ttl   time.Duration
+		flags map[string]*resp.CommandFlag
+	)
 
-	if cmd.ArgCount() <= 0 {
+	if req.ArgCount() <= 0 {
 		goto exit
 	}
 
 	flags = map[string]*resp.CommandFlag{
 		"NX": {
 			ExclusiveFlag: &nxxxOccurred,
-			Receiver: func(s []byte) error {
+			ValueReceiver: func(s []byte) error {
 				nx = true
 				return nil
 			},
 		},
 		"XX": {
 			ExclusiveFlag: &nxxxOccurred,
-			Receiver: func(s []byte) error {
+			ValueReceiver: func(s []byte) error {
 				xx = true
 				return nil
 			},
@@ -53,7 +60,7 @@ func cmdSet(cmd *resp.Command) error {
 		"EX": {
 			NeedValue: true,
 			ExclusiveFlag: &expxOccurred,
-			Receiver: func(s []byte) error {
+			ValueReceiver: func(s []byte) error {
 				seconds, err := strconv.Atoi(string(s))
 				if err != nil {
 					return err
@@ -66,7 +73,7 @@ func cmdSet(cmd *resp.Command) error {
 		"PX": {
 			NeedValue: true,
 			ExclusiveFlag: &expxOccurred,
-			Receiver: func(s []byte) error {
+			ValueReceiver: func(s []byte) error {
 				ms, err := strconv.Atoi(string(s))
 				if err != nil {
 					return err
@@ -78,22 +85,23 @@ func cmdSet(cmd *resp.Command) error {
 		},
 	}
 
-	err = cmd.ParseArgs(flags)
+	err = req.ParseFlags(flags)
 	if err != nil {
-		return cmd.WriteError("ERR syntax error")
+		log.WithError(err).WithField("command", req.Name()).Info("parse flags failed")
+		return req.WriteError("ERR syntax error")
 	}
 
 	if nx {
 		_, exist := globalMap.Load(name)
 		if exist {
-			return cmd.WriteNullBulkString()
+			return req.WriteNullBulkString()
 		}
 	}
 
 	if xx {
 		_, exist := globalMap.Load(name)
 		if !exist {
-			return cmd.WriteNullBulkString()
+			return req.WriteNullBulkString()
 		}
 	}
 
@@ -103,23 +111,20 @@ exit:
 	} else {
 		globalMap.Store(name, value)
 	}
-	return cmd.WriteSimpleString("OK")
+
+	return req.WriteSimpleString("OK")
 }
 
-func cmdGet(cmd *resp.Command) error {
-	if cmd.ArgCount() > 1 {
-		return cmd.WriteError("ERR wrong number of arguments for 'get' command")
-	}
-
-	args, err := cmd.ReadArg(1)
+func cmdGet(req *resp.CommandRequest) error {
+	args, err := req.ReadArg(1)
 	if err != nil {
 		return err
 	}
 
 	value, existed := globalMap.Load(string(args[0]))
 	if !existed {
-		return cmd.WriteNullBulkString()
+		return req.WriteNullBulkString()
 	}
 
-	return cmd.WriteBulkString(value.([]byte))
+	return req.WriteBulkString(value.([]byte))
 }
