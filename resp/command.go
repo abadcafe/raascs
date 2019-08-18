@@ -7,12 +7,11 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 )
 
 type argReader interface {
 	ArgCount() int
-	ReadArg(count int) ([]string, error)
+	ReadArg(count int) ([][]byte, error)
 	DiscardAllArgs() error
 }
 
@@ -25,7 +24,7 @@ type Command struct {
 type CommandFlag struct {
 	NeedValue bool
 	ExclusiveFlag *bool
-	Receiver  func(s string) error
+	Receiver  func(s []byte) error
 }
 
 var ErrNoMoreArguments = errors.New("no more arguments")
@@ -98,8 +97,8 @@ func readCommand(c *cliConn) (*Command, error) {
 			argCur:   0,
 		}
 	} else if (line[0] >= 'a' && line[0] <= 'z') || (line[0] >= 'A' && line[0] <= 'Z') {
-		ss := strings.Fields(string(line))
-		name = strings.ToUpper(ss[0])
+		ss := bytes.Fields(line)
+		name = string(bytes.ToUpper(ss[0]))
 		argReader = &simpleStringArgReader{
 			args:   ss[1:],
 			argCur: 0,
@@ -120,7 +119,7 @@ func (c *Command) Name() string {
 }
 
 func (c *Command) ParseArgs(flags map[string]*CommandFlag) error {
-	var valueReceiver func(s string) error = nil
+	var valueReceiver func(s []byte) error = nil
 
 	for c.ArgCount() > 0 {
 		args, err := c.ReadArg(1)
@@ -129,7 +128,7 @@ func (c *Command) ParseArgs(flags map[string]*CommandFlag) error {
 		}
 
 		if valueReceiver == nil {
-			arg := strings.ToUpper(args[0])
+			arg := string(bytes.ToUpper(args[0]))
 			cmdFlag, ok := flags[arg]
 			if !ok {
 				return fmt.Errorf("unexpected argument occurred: %s", arg)
@@ -144,7 +143,7 @@ func (c *Command) ParseArgs(flags map[string]*CommandFlag) error {
 			}
 
 			if !cmdFlag.NeedValue {
-				err = cmdFlag.Receiver("")
+				err = cmdFlag.Receiver(nil)
 				if err != nil {
 					return err
 				}
@@ -161,6 +160,10 @@ func (c *Command) ParseArgs(flags map[string]*CommandFlag) error {
 		}
 	}
 
+	if valueReceiver != nil {
+		return fmt.Errorf("the last argument needs value but absent")
+	}
+
 	return nil
 }
 
@@ -174,8 +177,22 @@ func (c *Command) WriteSimpleString(s string) error {
 	return err
 }
 
-func (c *Command) WriteBulkString(s string) error {
-	_, err := c.w.WriteString(fmt.Sprintf("$%d\r\n%s\r\n", len(s), s))
+func (c *Command) WriteBulkString(s []byte) error {
+	_, err := c.w.WriteString(fmt.Sprintf("$%d\r\n", len(s)))
+	if err != nil {
+		return err
+	}
+
+	_, err = c.w.Write(s)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.w.Write([]byte("\r\n"))
+	if err != nil {
+		return err
+	}
+
 	return err
 }
 

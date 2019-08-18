@@ -14,8 +14,8 @@ func (r *bulkStringArgReader) ArgCount() int {
 	return r.argCount
 }
 
-func (r *bulkStringArgReader) ReadArg(count int) ([]string, error) {
-	var ss []string
+func (r *bulkStringArgReader) ReadArg(count int) ([][]byte, error) {
+	var ss [][]byte
 
 	for i := 0; i < count; i++ {
 		if r.argCount <= 0 {
@@ -27,7 +27,7 @@ func (r *bulkStringArgReader) ReadArg(count int) ([]string, error) {
 			return nil, err
 		}
 
-		ss = append(ss, string(buf))
+		ss = append(ss, buf)
 		r.argCount--
 	}
 

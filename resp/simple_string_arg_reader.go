@@ -1,7 +1,7 @@
 package resp
 
 type simpleStringArgReader struct {
-	args   []string
+	args   [][]byte
 	argCur int
 }
 
@@ -9,7 +9,7 @@ func (r *simpleStringArgReader) ArgCount() int {
 	return len(r.args) - r.argCur
 }
 
-func (r *simpleStringArgReader) ReadArg(count int) ([]string, error) {
+func (r *simpleStringArgReader) ReadArg(count int) ([][]byte, error) {
 	if r.argCur+count > len(r.args) {
 		return nil, ErrNoMoreArguments
 	}

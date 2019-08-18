@@ -31,7 +31,7 @@ func (m *expirableMap) Load(key interface{}) (interface{}, bool) {
 	return v.(*value).payload, true
 }
 
-func (m *expirableMap) StoreWithTtl(key interface{}, payload interface{}, ttl time.Duration) {
+func (m *expirableMap) StoreWithTtl(key string, payload interface{}, ttl time.Duration) {
 	e := time.Now().Add(ttl)
 	value := &value{
 		payload:    payload,
@@ -41,7 +41,7 @@ func (m *expirableMap) StoreWithTtl(key interface{}, payload interface{}, ttl ti
 	m.Map.Store(key, value)
 }
 
-func (m *expirableMap) Store(key interface{}, payload interface{}) {
+func (m *expirableMap) Store(key string, payload interface{}) {
 	value := &value{
 		payload:    payload,
 		expiration: nil,

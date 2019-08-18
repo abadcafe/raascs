@@ -21,7 +21,7 @@ func cmdSet(cmd *resp.Command) error {
 		return err
 	}
 
-	name := args[0]
+	name := string(args[0])
 	value := args[1]
 
 	nxxxOccurred := false
@@ -38,14 +38,14 @@ func cmdSet(cmd *resp.Command) error {
 	flags = map[string]*resp.CommandFlag{
 		"NX": {
 			ExclusiveFlag: &nxxxOccurred,
-			Receiver: func(s string) error {
+			Receiver: func(s []byte) error {
 				nx = true
 				return nil
 			},
 		},
 		"XX": {
 			ExclusiveFlag: &nxxxOccurred,
-			Receiver: func(s string) error {
+			Receiver: func(s []byte) error {
 				xx = true
 				return nil
 			},
@@ -53,8 +53,8 @@ func cmdSet(cmd *resp.Command) error {
 		"EX": {
 			NeedValue: true,
 			ExclusiveFlag: &expxOccurred,
-			Receiver: func(s string) error {
-				seconds, err := strconv.Atoi(s)
+			Receiver: func(s []byte) error {
+				seconds, err := strconv.Atoi(string(s))
 				if err != nil {
 					return err
 				}
@@ -66,8 +66,8 @@ func cmdSet(cmd *resp.Command) error {
 		"PX": {
 			NeedValue: true,
 			ExclusiveFlag: &expxOccurred,
-			Receiver: func(s string) error {
-				ms, err := strconv.Atoi(s)
+			Receiver: func(s []byte) error {
+				ms, err := strconv.Atoi(string(s))
 				if err != nil {
 					return err
 				}
@@ -116,10 +116,10 @@ func cmdGet(cmd *resp.Command) error {
 		return err
 	}
 
-	value, existed := globalMap.Load(args[0])
+	value, existed := globalMap.Load(string(args[0]))
 	if !existed {
 		return cmd.WriteNullBulkString()
 	}
 
-	return cmd.WriteBulkString(value.(string))
+	return cmd.WriteBulkString(value.([]byte))
 }
