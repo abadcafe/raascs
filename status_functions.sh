@@ -33,7 +33,7 @@ start() {
 
     (
     set -m
-    sh -c "while true; do echo -e \"\n--------Run at \$(date -Iseconds)\" &>> $OUTFILE; $CMD &>> $OUTFILE; sleep 1; done" &
+    bash -c "while true; do echo -e \"\n--------Run at \$(date)\" &>> $OUTFILE; $CMD &>> $OUTFILE; sleep 1; done" &
     echo $! > "$PIDFILE" || exit 1
     )
 

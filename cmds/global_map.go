@@ -10,7 +10,7 @@ type expirableMap struct {
 }
 
 type value struct {
-	payload interface{}
+	payload    interface{}
 	expiration *time.Time
 }
 

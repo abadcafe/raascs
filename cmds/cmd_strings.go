@@ -11,7 +11,7 @@ func init() {
 	registerCommand("SET", &resp.Command{
 		MaxArgCount: -1,
 		MinArgCount: 2,
-		Handler: cmdSet,
+		Handler:     cmdSet,
 	})
 	registerCommand("GET", &resp.Command{
 		MinArgCount: 1,
@@ -32,10 +32,10 @@ func cmdSet(req *resp.CommandRequest) error {
 	var (
 		nxxxOccurred bool
 		expxOccurred bool
-		nx    bool
-		xx    bool
-		ttl   time.Duration
-		flags map[string]*resp.CommandFlag
+		nx           bool
+		xx           bool
+		ttl          time.Duration
+		flags        map[string]*resp.CommandFlag
 	)
 
 	if req.ArgCount() <= 0 {
@@ -58,7 +58,7 @@ func cmdSet(req *resp.CommandRequest) error {
 			},
 		},
 		"EX": {
-			NeedValue: true,
+			NeedValue:     true,
 			ExclusiveFlag: &expxOccurred,
 			ValueReceiver: func(s []byte) error {
 				seconds, err := strconv.Atoi(string(s))
@@ -71,7 +71,7 @@ func cmdSet(req *resp.CommandRequest) error {
 			},
 		},
 		"PX": {
-			NeedValue: true,
+			NeedValue:     true,
 			ExclusiveFlag: &expxOccurred,
 			ValueReceiver: func(s []byte) error {
 				ms, err := strconv.Atoi(string(s))

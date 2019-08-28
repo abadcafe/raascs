@@ -34,10 +34,10 @@ const stopCheckInterval = 500 * time.Millisecond
 
 func NewServer(l net.Listener) *Server {
 	s := &Server{
-		connWg:   sync.WaitGroup{},
-		listener: l,
-		cmds:     map[string]*Command{},
-		clientIds: 3, // mimic the real redis.
+		connWg:    sync.WaitGroup{},
+		listener:  l,
+		cmds:      map[string]*Command{},
+		clientIds: 3, // the client id start from 3, mimic the real redis.
 	}
 
 	_ = s.RegisterCommand("QUIT", &Command{
